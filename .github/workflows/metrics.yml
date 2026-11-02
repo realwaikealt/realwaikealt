@@ -1,0 +1,45 @@
+name: metrics
+
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+env:
+  IMAGE_BRANCH: ci-generated-metrics
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git checkout --orphan $IMAGE_BRANCH
+      - uses: lowlighter/metrics@latest
+        with:
+          token: ${{ secrets.METRICS_TOKEN }}
+          base: header, activity, community, repositories
+          template: classic
+          config_timezone: America/Phoenix
+          plugins_errors_fatal: no
+          output_action: none
+          plugin_isocalendar: yes
+          plugin_isocalendar_duration: full-year
+          plugin_languages: yes
+          plugin_languages_limit: 8
+          plugin_languages_sections: most-used
+          plugin_languages_colors: github
+          plugin_languages_indepth: no
+      - name: Force push image
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git reset --hard
+          git clean -df
+          sudo cp /metrics_renders/* ./
+          git add --all
+          git commit -m "Update metrics image"
+          git push --force --set-upstream origin $IMAGE_BRANCH
